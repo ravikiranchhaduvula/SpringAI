@@ -1,0 +1,69 @@
+Postgres + pgvector: stores your text chunks as vectors (embeddings) + metadata.
+Spring AI VectorStore (pgvector): API Spring uses to write/read vectors.
+OpenAI Embeddings (text-embedding-3-small): turns text → numeric vectors.
+Spring AI ChatClient: calls the LLM (e.g., gpt-4o-mini) to answer using retrieved context.
+
+1) Ingest (POST /rag/ingest)
+Input: { "id": "runbook-1", "text": "...", "meta": { ... } }
+Controller calls RagService.ingest(id, text, meta).
+VectorStore.add([...Document...]):
+Spring AI asks OpenAI Embeddings to embed text.
+Spring AI saves: content, embedding vector, and metadata (incl. your docId) into pgvector.
+Table & vector column exist because spring.ai.vectorstore.pgvector.initialize-schema=true.
+
+//Result: your snippet is now searchable by meaning, not just keywords.
+
+2) Retrieve + answer (POST /rag/ask)
+
+Input: { "q": "How do we reduce p95 latency in checkout?", "k": 3 }
+Controller calls rag.retrieve(q, k) → VectorStore.similaritySearch(query, k).
+
+Spring AI:
+Embeds the query via OpenAI Embeddings.
+
+Runs a cosine similarity search in pgvector to get top-k documents.
+
+Controller formats a prompt:
+
+System: “Answer using ONLY the provided context. If not in context, say ‘I don’t know’.”
+
+User:
+
+Question: <q>
+Context:
+- <doc1 content>
+- <doc2 content>
+- ...
+
+
+ChatClient sends that to the model → gets a short answer.
+
+Controller responds with:
+
+{
+  "answer": "...",
+  "sources": [
+    { "preview": "<first 160 chars>", "metadata": { "docId":"runbook-1", ... } },
+    ...
+  ]
+}
+
+The sources make the answer auditable.
+
+3). Key behaviors & knobs
+
+    Chunking (later): For real docs, split into ~500–1000-char chunks before ingest; better recall.
+
+    Top-K (k): Start with 3; 3–5 is typical.
+
+    Strictness: The system prompt forces answers only from context; unknown → “I don’t know”.
+
+    Metadata: You can filter by metadata later (e.g., only service=checkout).
+
+    Costs: Embeddings happen only on ingest (and for each query). Using text-embedding-3-small keeps it cheap.
+
+ 5) Where to plug RAG into the router (optional)
+
+ In your /ai/route, before you call the model, do rag.retrieve(q, 2) and prepend the same Context block to your routing prompt.
+
+ That lets routing decisions consider your local docs (e.g., invoice formats, internal policies).

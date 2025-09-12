@@ -1,0 +1,42 @@
+Your /ai/route endpoint responded reliably (0% errors), with latency ~2–3s per call. The test rules you set (p95 < 5s, error rate < 5%) all passed. So the endpoint is stable under this very light load (1 user, 2 calls).
+
+  █ THRESHOLDS
+
+    http_req_duration
+    ✓ 'p(95)<5000' p(95)=2.97s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 4       0.062214/s
+    checks_succeeded...: 100.00% 4 out of 4
+    checks_failed......: 0.00%   0 out of 4
+
+    ✓ status is 200
+    ✓ json body
+
+    HTTP
+    http_req_duration..............: avg=2.13s  min=1.2s  med=2.13s  max=3.07s  p(90)=2.88s p(95)=2.97s
+      { expected_response:true }...: avg=2.13s  min=1.2s  med=2.13s  max=3.07s  p(90)=2.88s p(95)=2.97s
+    http_req_failed................: 0.00% 0 out of 2
+    http_reqs......................: 2     0.031107/s
+
+    EXECUTION
+    iteration_duration.............: avg=32.14s min=31.2s med=32.14s max=33.09s p(90)=32.9s p(95)=32.99s
+    iterations.....................: 2     0.031107/s
+    vus............................: 1     min=1                 max=1
+    vus_max........................: 1     min=1                 max=1
+
+    NETWORK
+    data_received..................: 612 B 9.518745968676933 B/s
+    data_sent......................: 350 B 5.44372726966818 B/s
+
+
+
+
+running (1m04.3s), 0/1 VUs, 2 complete and 0 interrupted iterations
+default ✓ [======================================] 1 VUs  1m0s
+

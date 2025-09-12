@@ -1,0 +1,32 @@
+1).Programmatic JSON mode (per request)
+This tells OpenAI to emit a single JSON object (not prose).
+
+2).Few-shot prompt (teaches the shape)
+Models imitate patterns they just saw
+→ much higher odds of valid JSON that matches our keys and types
+
+3).Safe parsing pipeline (no direct DTO bind first)
+We never try to map the raw text straight into your record. Instead we:
+a).Parse as a JSON tree (JsonNode) first.
+
+b).If parsing fails, we sanitize:
+-remove code fences/markdown,
+-extract the first top-level { … } block,
+-parse again.
+This avoids the “came as a complete surprise…” type errors that happen
+when Jackson meets non-JSON.
+
+4).Retry once with stricter wording
+If the first pass isn’t JSON, we ask again: “ONLY the JSON object. No markdown, no commentary.”
+This saves most borderline cases.
+
+5).Graceful fallback (never 500s while you build)
+If—even after retry—the model still won’t give JSON, we return the raw text as:
+{ "answer": "<trimmed model text>" }
+
+6).Validation after parse
+Only after we have a JSON object do we check:
+If action is present:
+must be "createPaymentHold",
+must include invoiceId and amount.
+Else we expect a non-blank answer.

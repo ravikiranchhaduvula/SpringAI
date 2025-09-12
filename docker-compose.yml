@@ -1,0 +1,10 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector-db
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aistore
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"

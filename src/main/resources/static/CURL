@@ -1,0 +1,15 @@
+$ curl -s -X POST http://localhost:8080/ai/route   -H "content-type: application/json"   -d '{"q":"How can I reduce p95 latency?"}'
+{"answer":"Consider optimizing your code, improving server resources, and using load balancing."}
+
+$ curl -s -X POST http://localhost:8080/ai/route   -H "content-type: application/json"   -d '{"q":"Place a hold on invoice INV-1001 for $120.50"}'
+{"action":"createPaymentHold","args":{"invoiceId":"INV-1001","amount":120.5}}
+
+>>> The Flow <<<
+1).curl sends JSON → Spring parses it.
+2).Controller builds prompt + options → passes to OpenAI via Spring AI.
+3).OpenAI returns JSON (thanks to responseFormat).
+4).JSON is mapped into RouterResult → post-processed → returned as JSON.
+
+>>> K6 <<<
+ $env:BASE_URL = "http://localhost:8080"
+ PS C:\demoActual> k6 run .\src\main\perf\k6-light.js
