@@ -18,6 +18,10 @@ jobs:
           POSTGRES_DB: aistore
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/aistore
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+          OPENAI_API_KEY: dummy
         ports:
           - 5432:5432
         # give DB a moment to be ready
