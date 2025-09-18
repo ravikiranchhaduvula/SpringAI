@@ -46,24 +46,41 @@ pipeline {
     }
 
     stage('Deploy to ECS with Ansible') {
-    steps {
-      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDS]]) {
+  steps {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDS]]) {
       sh '''#!/bin/bash
         set -euo pipefail
         export AWS_DEFAULT_REGION="$AWS_REGION"
 
-        # Reinstall collections with versions compatible with ansible-core 2.15
+        # Make sure the file from the previous stage exists
+        if [[ ! -s artifacts/deploy.env ]]; then
+          echo "artifacts/deploy.env is missing or empty. Did the Resolve stage run?"
+          exit 1
+        fi
+
+        # Load variables from artifacts/deploy.env (e.g., IMAGE_URI)
+        set -a
+        # shellcheck disable=SC1091
+        source artifacts/deploy.env
+        set +a
+
+        # Validate we have IMAGE_URI
+        : "${IMAGE_URI:?IMAGE_URI not set in artifacts/deploy.env}"
+
+        # Install pinned collections and set search path
         ansible-galaxy collection install -r ansible/requirements.yml \
           -p .ansible/collections --force
-
-        # Search the workspace first, then global paths
         export ANSIBLE_COLLECTIONS_PATHS="$PWD/.ansible/collections:/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
 
+        # Use the venv python (where boto3/botocore are installed)
+        export ANSIBLE_PYTHON_INTERPRETER=/opt/ansible/bin/python3
+
+        # Pass exact role ARNs
         ansible-playbook -i ansible/inventory ansible/deploy-ecs.yml \
-                --extra-vars "image_uri=$IMAGE_URI \
-                  exec_role_arn=arn:aws:iam::988360983746:role/ecsTaskExecutionRole \
-                  task_role_arn=arn:aws:iam::988360983746:role/myappTaskRole"
-                '''
+          --extra-vars "image_uri=${IMAGE_URI} \
+                        exec_role_arn=arn:aws:iam::988360983746:role/ecsTaskExecutionRole \
+                        task_role_arn=arn:aws:iam::988360983746:role/myappTaskRole"
+      '''
     }
   }
 }
