@@ -3,9 +3,9 @@
   hosts: local
   gather_facts: false
   vars:
-    cluster_name: myapp-cluster       # <-- update to your ECS cluster name
-    service_name: myapp-web-svc       # <-- update to your ECS service name
-    taskdef_family: myapp-web         # <-- must match your ECS task definition family
+    cluster_name: myapp-cluster
+    service_name: myapp-web-svc
+    taskdef_family: myapp-web
   tasks:
     - name: Register new ECS task definition revision
       amazon.aws.ecs_taskdefinition:

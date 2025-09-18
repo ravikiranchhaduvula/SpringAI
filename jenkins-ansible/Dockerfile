@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ---- Ansible in a virtualenv (avoids PEP 668 "externally managed" error) ----
 # Create venv, install Ansible + AWS libs, install amazon.aws collection,
 # and expose binaries on PATH via symlinks.
+# Install Ansible into a virtualenv
 RUN python3 -m venv /opt/ansible \
   && /opt/ansible/bin/pip install --no-cache-dir "ansible>=8,<9" boto3 botocore \
-  && /opt/ansible/bin/ansible-galaxy collection install amazon.aws \
+  && /opt/ansible/bin/ansible-galaxy collection install amazon.aws -p /usr/share/ansible/collections \
   && ln -s /opt/ansible/bin/ansible /usr/local/bin/ansible \
   && ln -s /opt/ansible/bin/ansible-playbook /usr/local/bin/ansible-playbook
 
