@@ -1,0 +1,8 @@
+---
+- name: Deploy placeholder
+  hosts: local
+  gather_facts: false
+  tasks:
+    - name: Show image URI passed from Jenkins
+      debug:
+        msg: "Deploying image {{ image_uri }}"
