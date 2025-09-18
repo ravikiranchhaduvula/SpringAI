@@ -3,11 +3,12 @@ pipeline {
 
   environment {
     AWS_REGION = 'ap-southeast-2'
-    AWS_CREDS  = 'aws-creds'        // Jenkins credentials ID with ECR/ECS/IAM perms
-    ECR_REPO   = 'myapp-web'        // your ECR repo name
+    AWS_CREDS  = 'aws-creds'   // Jenkins credentials ID with ECR/ECS/IAM perms
+    ECR_REPO   = 'myapp-web'   // your ECR repo name
   }
 
   stages {
+
     stage('Checkout') {
       steps { checkout scm }
     }
@@ -50,8 +51,22 @@ pipeline {
           sh '''#!/bin/bash
             set -euo pipefail
             export AWS_DEFAULT_REGION="$AWS_REGION"
-            source artifacts/deploy.env    # bash supports 'source'
 
+            # Install required collections into the workspace (idempotent; fast after first run)
+            if [[ -f ansible/requirements.yml ]]; then
+              ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
+            else
+              # fallback in case requirements.yml is missing
+              ansible-galaxy collection install amazon.aws community.aws -p .ansible/collections
+            fi
+
+            # Ensure Ansible searches the workspace first, then global paths
+            export ANSIBLE_COLLECTIONS_PATHS="$PWD/.ansible/collections:/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
+
+            # Load resolved image from previous stage
+            source artifacts/deploy.env
+
+            # Run the playbook
             ansible-playbook -i ansible/inventory ansible/deploy-ecs.yml \
               --extra-vars "image_uri=$IMAGE_URI"
           '''

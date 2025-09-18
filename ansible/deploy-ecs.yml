@@ -2,10 +2,15 @@
 - name: Deploy app to ECS
   hosts: local
   gather_facts: false
+  collections:
+    - amazon.aws
+    - community.aws   # optional fallback
   vars:
+    aws_region: ap-southeast-2
     cluster_name: myapp-cluster
     service_name: myapp-web-svc
     taskdef_family: myapp-web
+
   tasks:
     - name: Register new ECS task definition revision
       amazon.aws.ecs_taskdefinition:
@@ -22,14 +27,14 @@
             image: "{{ image_uri }}"
             essential: true
             portMappings:
-              - containerPort: 80
-                hostPort: 80
+              - containerPort: 80         # change to 8080 if your app listens on 8080
+                hostPort: 80              # keep in sync with your service/ALB target port
                 protocol: tcp
             logConfiguration:
               logDriver: awslogs
               options:
                 awslogs-group: "/ecs/myapp-web"
-                awslogs-region: "ap-southeast-2"
+                awslogs-region: "{{ aws_region }}"
                 awslogs-stream-prefix: "ecs"
       register: td
 
@@ -40,3 +45,4 @@
         cluster: "{{ cluster_name }}"
         task_definition: "{{ td.taskdefinition.taskDefinition.taskDefinitionArn }}"
         desired_count: 1
+        force_new_deployment: true

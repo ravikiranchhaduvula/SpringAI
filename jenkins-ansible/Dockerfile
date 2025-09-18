@@ -15,7 +15,10 @@ RUN python3 -m venv /opt/ansible \
   && /opt/ansible/bin/pip install --no-cache-dir "ansible>=8,<9" boto3 botocore \
   && /opt/ansible/bin/ansible-galaxy collection install amazon.aws -p /usr/share/ansible/collections \
   && ln -s /opt/ansible/bin/ansible /usr/local/bin/ansible \
-  && ln -s /opt/ansible/bin/ansible-playbook /usr/local/bin/ansible-playbook
+  && ln -s /opt/ansible/bin/ansible-playbook /usr/local/bin/ansible-playbook \
+  && ln -s /opt/ansible/bin/ansible-galaxy /usr/local/bin/ansible-galaxy   # <- add this
+# Ensure Ansible sees global + Jenkins paths
+ENV ANSIBLE_COLLECTIONS_PATHS="/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
 
 # Ensure Ansible can find global collections and (optionally) Jenkins' user collections
 ENV ANSIBLE_COLLECTIONS_PATHS="/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
