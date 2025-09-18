@@ -58,10 +58,11 @@
         desired_count: 1
         force_new_deployment: true
         launch_type: FARGATE
-        subnets:
-          - subnet-03876e719b21eef27
-          - subnet-01f2a400dc6fbb9ec
-          - subnet-026bb3d764049a583
-        security_groups:
-          - sg-0e3dcccbda1881c13
-        assign_public_ip: true
+        network_configuration:
+          subnets:
+            - subnet-03876e719b21eef27
+            - subnet-01f2a400dc6fbb9ec
+            - subnet-026bb3d764049a583
+          security_groups:
+            - sg-0e3dcccbda1881c13
+          assign_public_ip: true
