@@ -1,7 +1,9 @@
----
+--- 
 - name: Deploy app to ECS
   hosts: local
   gather_facts: false
+  vars:
+    ansible_python_interpreter: /opt/ansible/bin/python3
   collections:
     - community.aws           # works with ansible-core 2.15 + collections <9
     - amazon.aws
