@@ -1,18 +1,18 @@
---- 
+---
 - name: Deploy app to ECS
   hosts: local
   gather_facts: false
-  vars:
-    ansible_python_interpreter: /opt/ansible/bin/python3
-  collections:
-    - community.aws           # works with ansible-core 2.15 + collections <9
-    - amazon.aws
 
   vars:
+    ansible_python_interpreter: /opt/ansible/bin/python3
     aws_region: ap-southeast-2
     cluster_name: myapp-cluster
     service_name: myapp-web-svc
     taskdef_family: myapp-web
+
+  collections:
+    - community.aws
+    - amazon.aws
 
   tasks:
     - name: Register new ECS task definition revision
@@ -30,7 +30,7 @@
             image: "{{ image_uri }}"
             essential: true
             portMappings:
-              - containerPort: 80          # change to 8080 if your app listens on 8080
+              - containerPort: 80     # change to 8080 if app listens on 8080
                 protocol: tcp
             logConfiguration:
               logDriver: awslogs
@@ -40,7 +40,7 @@
                 awslogs-stream-prefix: "ecs"
       register: td
 
-    # Different collection versions return slightly different keys; normalize
+    # Normalize the taskdef ARN across collection versions
     - name: Derive new task definition ARN
       set_fact:
         new_taskdef_arn: >-
@@ -51,7 +51,7 @@
           }}
 
     - name: Update ECS service to use new task definition
-      amazon.aws.ecs_service:
+      community.aws.ecs_service:
         state: present
         name: "{{ service_name }}"
         cluster: "{{ cluster_name }}"
