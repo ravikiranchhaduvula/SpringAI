@@ -59,10 +59,11 @@ pipeline {
         # Search the workspace first, then global paths
         export ANSIBLE_COLLECTIONS_PATHS="$PWD/.ansible/collections:/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
 
-        source artifacts/deploy.env
         ansible-playbook -i ansible/inventory ansible/deploy-ecs.yml \
-          --extra-vars "image_uri=$IMAGE_URI"
-      '''
+                --extra-vars "image_uri=$IMAGE_URI \
+                  exec_role_arn=arn:aws:iam::988360983746:role/ecsTaskExecutionRole \
+                  task_role_arn=arn:aws:iam::988360983746:role/myappTaskRole"
+                '''
     }
   }
 }
