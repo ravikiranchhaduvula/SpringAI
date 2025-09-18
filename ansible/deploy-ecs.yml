@@ -40,7 +40,6 @@
                 awslogs-stream-prefix: "ecs"
       register: td
 
-    # Normalize the taskdef ARN across collection versions
     - name: Derive new task definition ARN
       set_fact:
         new_taskdef_arn: >-
@@ -59,12 +58,10 @@
         desired_count: 1
         force_new_deployment: true
         launch_type: FARGATE
-        network_configuration:
-          awsvpcConfiguration:
-            subnets:
-              - subnet-03876e719b21eef27
-              - subnet-01f2a400dc6fbb9ec
-              - subnet-026bb3d764049a583
-            securityGroups:
-              - sg-0e3dcccbda1881c13
-            assignPublicIp: ENABLED
+        subnets:
+          - subnet-03876e719b21eef27
+          - subnet-01f2a400dc6fbb9ec
+          - subnet-026bb3d764049a583
+        security_groups:
+          - sg-0e3dcccbda1881c13
+        assign_public_ip: true
