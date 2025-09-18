@@ -1,8 +1,42 @@
 ---
-- name: Deploy placeholder
+- name: Deploy app to ECS
   hosts: local
   gather_facts: false
+  vars:
+    cluster_name: myapp-cluster       # <-- update to your ECS cluster name
+    service_name: myapp-web-svc       # <-- update to your ECS service name
+    taskdef_family: myapp-web         # <-- must match your ECS task definition family
   tasks:
-    - name: Show image URI passed from Jenkins
-      debug:
-        msg: "Deploying image {{ image_uri }}"
+    - name: Register new ECS task definition revision
+      amazon.aws.ecs_taskdefinition:
+        family: "{{ taskdef_family }}"
+        state: present
+        launch_type: FARGATE
+        network_mode: awsvpc
+        cpu: "256"
+        memory: "512"
+        execution_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/ecsTaskExecutionRole"
+        task_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/myappTaskRole"
+        container_definitions:
+          - name: myapp-web
+            image: "{{ image_uri }}"
+            essential: true
+            portMappings:
+              - containerPort: 80
+                hostPort: 80
+                protocol: tcp
+            logConfiguration:
+              logDriver: awslogs
+              options:
+                awslogs-group: "/ecs/myapp-web"
+                awslogs-region: "ap-southeast-2"
+                awslogs-stream-prefix: "ecs"
+      register: td
+
+    - name: Update ECS service to use new task definition
+      amazon.aws.ecs_service:
+        state: present
+        name: "{{ service_name }}"
+        cluster: "{{ cluster_name }}"
+        task_definition: "{{ td.taskdefinition.taskDefinition.taskDefinitionArn }}"
+        desired_count: 1
