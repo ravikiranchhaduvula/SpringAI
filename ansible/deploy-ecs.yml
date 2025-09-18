@@ -3,8 +3,8 @@
   hosts: local
   gather_facts: false
   collections:
-    - community.aws          # use community.* modules for Ansible 2.15
-    - amazon.aws             # still fine to keep on the path
+    - community.aws           # works with ansible-core 2.15 + collections <9
+    - amazon.aws
 
   vars:
     aws_region: ap-southeast-2
@@ -23,13 +23,12 @@
         memory: "512"
         execution_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/ecsTaskExecutionRole"
         task_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/myappTaskRole"
-        container_definitions:
+        containers:
           - name: myapp-web
             image: "{{ image_uri }}"
             essential: true
             portMappings:
               - containerPort: 80          # change to 8080 if your app listens on 8080
-                hostPort: 80               # keep in sync with your service/ALB target port
                 protocol: tcp
             logConfiguration:
               logDriver: awslogs
@@ -39,7 +38,7 @@
                 awslogs-stream-prefix: "ecs"
       register: td
 
-    # The return structure differs across collection versions; normalize it.
+    # Different collection versions return slightly different keys; normalize
     - name: Derive new task definition ARN
       set_fact:
         new_td_arn: >-
