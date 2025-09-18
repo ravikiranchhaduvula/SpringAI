@@ -23,8 +23,8 @@
         network_mode: awsvpc
         cpu: "256"
         memory: "512"
-        execution_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/ecsTaskExecutionRole"
-        task_role_arn: "arn:aws:iam::{{ lookup('aws_account_attribute','account_id') }}:role/myappTaskRole"
+        execution_role_arn: "arn:aws:iam::988360983746:role/ecsTaskExecutionRole"
+        task_role_arn: "arn:aws:iam::988360983746:role/myappTaskRole"
         containers:
           - name: myapp-web
             image: "{{ image_uri }}"
