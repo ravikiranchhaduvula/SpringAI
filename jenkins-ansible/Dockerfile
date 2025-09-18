@@ -9,14 +9,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # ---- Ansible in a virtualenv (avoids PEP 668 "externally managed" error) ----
-# Create venv, install Ansible + AWS libs, install amazon.aws collection,
+# Create venv, install Ansible + AWS libs, install amazon.aws collection globally,
 # and expose binaries on PATH via symlinks.
-# Install Ansible into a virtualenv
 RUN python3 -m venv /opt/ansible \
   && /opt/ansible/bin/pip install --no-cache-dir "ansible>=8,<9" boto3 botocore \
   && /opt/ansible/bin/ansible-galaxy collection install amazon.aws -p /usr/share/ansible/collections \
   && ln -s /opt/ansible/bin/ansible /usr/local/bin/ansible \
   && ln -s /opt/ansible/bin/ansible-playbook /usr/local/bin/ansible-playbook
+
+# Ensure Ansible can find global collections and (optionally) Jenkins' user collections
+ENV ANSIBLE_COLLECTIONS_PATHS="/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
+# (optional) expose venv path for interactive shells
+ENV PATH="/opt/ansible/bin:${PATH}"
 
 # ---- AWS CLI v2 ----
 RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
@@ -33,8 +37,5 @@ RUN mkdir -p /etc/apt/keyrings \
      | tee /etc/apt/sources.list.d/github-cli.list >/dev/null \
   && apt-get update && apt-get install -y gh \
   && rm -rf /var/lib/apt/lists/*
-
-# (optional) expose venv path for interactive shells
-ENV PATH="/opt/ansible/bin:${PATH}"
 
 USER jenkins
