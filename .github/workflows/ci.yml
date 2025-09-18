@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  id-token: write      # needed for AWS OIDC
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPO: myapp-web
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
   backend:
     name: Build (Gradle + pgvector)
@@ -32,13 +41,9 @@ jobs:
           --health-retries=10
 
     env:
-      # Make Spring talk to the CI Postgres service
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/aistore
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-
-      # Optional: keep app from trying to embed/init vectors during plain build
-      # spring.ai.vectorstore.pgvector.initialize-schema=true still OK
 
     steps:
       - name: Checkout
@@ -90,7 +95,6 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/aistore
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      # Required for real LLM call; add as GitHub secret
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       BASE_URL: http://localhost:8080
 
@@ -109,7 +113,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-jar
-          path: build/libs
+        # default path is ./app-jar; we’ll relocate it next
+      - name: Move JAR into build/libs (for local run layout)
+        run: |
+          mkdir -p build/libs
+          mv app-jar/*.jar build/libs/
 
       - name: Verify JAR present
         run: ls -l build/libs
@@ -118,7 +126,6 @@ jobs:
         run: |
           nohup java -jar build/libs/*.jar > app.log 2>&1 &
           echo $! > app.pid
-          # wait until actuator up (or fallback to root)
           for i in {1..60}; do
             if curl -sSf http://localhost:8080/actuator/health >/dev/null; then
               echo "App is up."; break
@@ -138,7 +145,6 @@ jobs:
           cat > perf/k6-light.js <<'EOF'
           import http from "k6/http";
           import { check, sleep } from "k6";
-
           export const options = {
             vus: 1,
             duration: "60s",
@@ -147,12 +153,10 @@ jobs:
               http_req_duration: ["p(95)<2000"],
             },
           };
-
           const payloads = [
             { q: "How can I reduce p95 latency?" },
             { q: "Place a hold on invoice INV-2002 for $45.00" },
           ];
-
           export default function () {
             const idx = __ITER % payloads.length;
             const res = http.post(
@@ -164,7 +168,7 @@ jobs:
               "status 200": (r) => r.status === 200,
               "json": (r) => (r.headers["Content-Type"] || "").includes("application/json"),
             });
-            sleep(30); // ~2 requests per minute
+            sleep(30); // ~2 req/min
           }
           EOF
 
@@ -183,3 +187,57 @@ jobs:
         if: always()
         run: |
           if [ -f app.pid ]; then kill $(cat app.pid) || true; fi
+
+  ecr_build_and_push:
+    name: Build & Push image to ECR
+    runs-on: ubuntu-latest
+    needs: backend
+    # only push images on push events to main/master (not on PRs)
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pull the JAR from the backend job so Dockerfile can COPY it (if applicable)
+      - name: Download JAR artifact (optional but handy)
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+        continue-on-error: true
+      - name: Place JAR in build/libs (if present)
+        run: |
+          if ls app-jar/*.jar >/dev/null 2>&1; then
+            mkdir -p build/libs
+            mv app-jar/*.jar build/libs/
+          else
+            echo "No JAR artifact found; proceeding with Dockerfile as-is."
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::988360983746:role/GHA_OIDC_ECR_Pusher
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        run: |
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker tag $ECR_REPO:$IMAGE_TAG ${{ steps.ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
+
+      - name: Push image
+        run: |
+          docker push ${{ steps.ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
+
+      - name: Save image URI artifact (for Jenkins/Ansible later)
+        run: echo "${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}" > image_uri.txt
+
+      - name: Upload image URI
+        uses: actions/upload-artifact@v4
+        with:
+          name: image_uri
+          path: image_uri.txt
