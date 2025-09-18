@@ -1,0 +1,14 @@
+services:
+  jenkins:
+    build: .
+    container_name: jenkins-ansible
+    ports:
+      - "8080:8080"   # UI
+      - "50000:50000" # inbound agents (optional)
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./ansible:/ansible   # mount your playbooks (optional)
+    environment:
+      - JAVA_OPTS=
+volumes:
+  jenkins_home:
