@@ -3,8 +3,9 @@
   hosts: local
   gather_facts: false
   collections:
-    - amazon.aws
-    - community.aws   # optional fallback
+    - community.aws          # use community.* modules for Ansible 2.15
+    - amazon.aws             # still fine to keep on the path
+
   vars:
     aws_region: ap-southeast-2
     cluster_name: myapp-cluster
@@ -13,7 +14,7 @@
 
   tasks:
     - name: Register new ECS task definition revision
-      amazon.aws.ecs_taskdefinition:
+      community.aws.ecs_taskdefinition:
         family: "{{ taskdef_family }}"
         state: present
         launch_type: FARGATE
@@ -27,8 +28,8 @@
             image: "{{ image_uri }}"
             essential: true
             portMappings:
-              - containerPort: 80         # change to 8080 if your app listens on 8080
-                hostPort: 80              # keep in sync with your service/ALB target port
+              - containerPort: 80          # change to 8080 if your app listens on 8080
+                hostPort: 80               # keep in sync with your service/ALB target port
                 protocol: tcp
             logConfiguration:
               logDriver: awslogs
@@ -38,11 +39,19 @@
                 awslogs-stream-prefix: "ecs"
       register: td
 
+    # The return structure differs across collection versions; normalize it.
+    - name: Derive new task definition ARN
+      set_fact:
+        new_td_arn: >-
+          {{ td.taskdefinition.taskDefinition.taskDefinitionArn
+             | default(td.task_definition.task_definition_arn)
+             | default(td.taskdefinition.task_definition_arn) }}
+
     - name: Update ECS service to use new task definition
-      amazon.aws.ecs_service:
+      community.aws.ecs_service:
         state: present
         name: "{{ service_name }}"
         cluster: "{{ cluster_name }}"
-        task_definition: "{{ td.taskdefinition.taskDefinition.taskDefinitionArn }}"
+        task_definition: "{{ new_td_arn }}"
         desired_count: 1
         force_new_deployment: true

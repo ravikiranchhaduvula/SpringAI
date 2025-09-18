@@ -46,32 +46,25 @@ pipeline {
     }
 
     stage('Deploy to ECS with Ansible') {
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDS]]) {
-          sh '''#!/bin/bash
-            set -euo pipefail
-            export AWS_DEFAULT_REGION="$AWS_REGION"
+    steps {
+      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDS]]) {
+      sh '''#!/bin/bash
+        set -euo pipefail
+        export AWS_DEFAULT_REGION="$AWS_REGION"
 
-            # Install required collections into the workspace (idempotent; fast after first run)
-            if [[ -f ansible/requirements.yml ]]; then
-              ansible-galaxy collection install -r ansible/requirements.yml -p .ansible/collections
-            else
-              # fallback in case requirements.yml is missing
-              ansible-galaxy collection install amazon.aws community.aws -p .ansible/collections
-            fi
+        # Reinstall collections with versions compatible with ansible-core 2.15
+        ansible-galaxy collection install -r ansible/requirements.yml \
+          -p .ansible/collections --force
 
-            # Ensure Ansible searches the workspace first, then global paths
-            export ANSIBLE_COLLECTIONS_PATHS="$PWD/.ansible/collections:/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
+        # Search the workspace first, then global paths
+        export ANSIBLE_COLLECTIONS_PATHS="$PWD/.ansible/collections:/usr/share/ansible/collections:/var/jenkins_home/.ansible/collections"
 
-            # Load resolved image from previous stage
-            source artifacts/deploy.env
-
-            # Run the playbook
-            ansible-playbook -i ansible/inventory ansible/deploy-ecs.yml \
-              --extra-vars "image_uri=$IMAGE_URI"
-          '''
-        }
-      }
+        source artifacts/deploy.env
+        ansible-playbook -i ansible/inventory ansible/deploy-ecs.yml \
+          --extra-vars "image_uri=$IMAGE_URI"
+      '''
     }
+  }
+}
   }
 }
