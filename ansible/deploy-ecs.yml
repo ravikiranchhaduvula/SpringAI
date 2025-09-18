@@ -43,16 +43,18 @@
     # Different collection versions return slightly different keys; normalize
     - name: Derive new task definition ARN
       set_fact:
-        new_td_arn: >-
-          {{ td.taskdefinition.taskDefinition.taskDefinitionArn
-             | default(td.task_definition.task_definition_arn)
-             | default(td.taskdefinition.task_definition_arn) }}
+        new_taskdef_arn: >-
+          {{
+            td.task_definition_arn
+              | default(td.taskdefinition.taskDefinitionArn
+              | default(td.taskdefinition.taskDefinition.taskDefinitionArn))
+          }}
 
     - name: Update ECS service to use new task definition
-      community.aws.ecs_service:
+      amazon.aws.ecs_service:
         state: present
         name: "{{ service_name }}"
         cluster: "{{ cluster_name }}"
-        task_definition: "{{ new_td_arn }}"
+        task_definition: "{{ new_taskdef_arn }}"
         desired_count: 1
         force_new_deployment: true
